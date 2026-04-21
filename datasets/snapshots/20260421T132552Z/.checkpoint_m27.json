@@ -1,0 +1,30 @@
+{
+  "completed_ids": [
+    "hf-87b9c22645f1",
+    "hf-bee4e00fe41d",
+    "hf-a78b7760f2b4",
+    "hf-b77b83369ecf",
+    "hf-6498eeb6b60c",
+    "hf-22e5f949f686",
+    "hf-72195f95637e",
+    "hf-1ce18624e7c2",
+    "hf-789847a1160a",
+    "hf-73903e3111ba",
+    "agent-tool-select-01",
+    "agent-plan-revise-01",
+    "agent-reflection-01",
+    "agent-error-recovery-01",
+    "agent-decomp-01",
+    "agent-clarify-vs-act-01",
+    "agent-structured-output-01",
+    "agent-context-budget-01",
+    "agent-tool-compose-01",
+    "agent-reflection-02",
+    "agent-safety-gate-01",
+    "agent-long-horizon-01",
+    "agent-permission-scope-01",
+    "agent-tool-abuse-detect-01",
+    "agent-multi-agent-coord-01"
+  ],
+  "failed": {}
+}
