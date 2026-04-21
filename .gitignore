@@ -84,3 +84,8 @@ scripts/smoke_trace.json
 scripts/*_trace.json
 *.secret
 secrets/
+
+# webui build artifacts (Docker rebuilds)
+web/node_modules/
+web/dist/
+data/
