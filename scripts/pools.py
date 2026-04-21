@@ -41,18 +41,15 @@ REASONING_SPECIALIST: str = "minimax/minimax-m2.5:free"
 CODE_SPECIALIST: str = "qwen/qwen3-coder:free"
 
 # Judge pool — primary panel for AutoReason Borda ranking.
-# Designed around the 2 Gemma 4 models as the core discriminators, with
-# GLM 4.5 Air + two other non-Google families for cross-family diversity.
-# Seven judges, four families: Google (3), Zhipu (1), OpenAI (1), Meta (1),
-# NVIDIA (1). Panel diversity outperforms panel size of identical judges.
+# Locked to the newest-generation free models only. Five judges across
+# four families: Google (2), Zhipu (1), InclusionAI/Ant (1), OpenAI (1).
+# Panel diversity outperforms panel size of identical judges.
 JUDGE_POOL: List[str] = [
-    "google/gemma-4-26b-a4b-it:free",        # Google Gemma 4 MoE
-    "google/gemma-4-31b-it:free",            # Google Gemma 4 dense
-    "google/gemma-3-27b-it:free",            # Google Gemma 3 (legacy cross-check)
-    "z-ai/glm-4.5-air:free",                 # Zhipu GLM family
-    "openai/gpt-oss-20b:free",               # OpenAI open weights
-    "meta-llama/llama-3.3-70b-instruct:free",# Meta Llama
-    "nvidia/nemotron-3-nano-30b-a3b:free",   # NVIDIA Nemotron
+    "google/gemma-4-26b-a4b-it:free",       # Google Gemma 4 MoE (26B / 4B active)
+    "google/gemma-4-31b-it:free",           # Google Gemma 4 dense (31B)
+    "z-ai/glm-4.5-air:free",                # Zhipu GLM 4.5 Air
+    "inclusionai/ling-2.6-flash:free",      # InclusionAI / Ant Group Ling 2.6 Flash
+    "openai/gpt-oss-120b:free",             # OpenAI open weights 120B
 ]
 
 
