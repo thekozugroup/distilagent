@@ -28,9 +28,9 @@ from huggingface_hub import hf_hub_download
 
 sys.path.insert(0, str(Path(__file__).parent))
 from agentic_prompts import get_prompts as get_agentic_prompts  # noqa: E402
+from reasoning_llm import ReasoningOpenRouterLLM  # noqa: E402
 
-from distilabel.models import OpenAILLM  # noqa: E402
-from distilabel.steps.tasks import AutoReasonedGeneration  # noqa: E402
+from distilabel.steps.tasks import AutoReasonedGeneration  # noqa: E402  # re-exported for CLI smoke  # noqa: F401
 from distilabel.steps.tasks.autoreason.rate_limit import get_limiter  # noqa: E402
 from distilabel.steps.tasks.autoreason.tournament import TournamentRunner  # noqa: E402
 
@@ -117,12 +117,29 @@ def save_checkpoint(path: Path, state: Dict) -> None:
 async def run_one(
     runner: TournamentRunner, sample: Dict
 ) -> Optional[Dict]:
+    # Reset reasoning buffer so only this sample's thinking is captured.
+    llm = runner.llm
+    if hasattr(llm, "drain_reasoning"):
+        llm.drain_reasoning()
     t0 = time.monotonic()
     try:
         trace = await runner.run(sample["instruction"])
     except Exception as exc:  # noqa: BLE001
         return {"error": f"{type(exc).__name__}: {exc}"}
     elapsed = time.monotonic() - t0
+
+    reasoning_entries = []
+    if hasattr(llm, "drain_reasoning"):
+        for i, (role_hint, reasoning, text) in enumerate(llm.drain_reasoning()):
+            reasoning_entries.append(
+                {
+                    "call_index": i,
+                    "role_hint": role_hint,
+                    "reasoning": reasoning,
+                    "text": text,
+                }
+            )
+
     return {
         **sample,
         "generation": trace.final_answer,
@@ -132,6 +149,8 @@ async def run_one(
         "total_calls": trace.total_calls,
         "elapsed_seconds": round(elapsed, 2),
         "model_name": runner.llm.model_name,
+        "reasoning_trace": reasoning_entries,
+        "reasoning_total_chars": sum(len(e["reasoning"]) for e in reasoning_entries),
     }
 
 
@@ -153,10 +172,11 @@ async def amain(cfg: Config) -> int:
         flush=True,
     )
 
-    llm = OpenAILLM(
+    llm = ReasoningOpenRouterLLM(
         model=cfg.model,
         base_url="https://openrouter.ai/api/v1",
         api_key=os.environ["OPENROUTER_API_KEY"],
+        reasoning_effort=os.environ.get("REASONING_EFFORT", "high"),
     )
     llm.load()
 
