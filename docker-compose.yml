@@ -1,0 +1,16 @@
+services:
+  distilagent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: distilagent:latest
+    container_name: distilagent
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/data
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:?Set OPENROUTER_API_KEY in .env or your shell}
+      - DISTILAGENT_DATA=/data
+      - LLM_CALL_TIMEOUT=300
+    restart: unless-stopped
