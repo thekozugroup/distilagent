@@ -16,10 +16,18 @@ import argparse
 import asyncio
 import hashlib
 import json
+import logging
 import os
 import random
 import sys
 import time
+
+# Surface per-role / per-judge call traces to the run log so we can see
+# which models actually fire in the tournament.
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s - %(message)s",
+)
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional

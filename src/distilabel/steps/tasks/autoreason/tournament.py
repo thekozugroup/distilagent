@@ -179,16 +179,32 @@ class TournamentRunner:
         async def call_role(role: str, messages):
             llm = self._llm_for_role(role)
             limiter = self._limiter_for(llm)
+            model = getattr(llm, "model_name", "?")
             async with sem:
                 trace.total_calls += 1
-                return await _invoke(llm, messages, limiter)
+                t0 = asyncio.get_event_loop().time()
+                _LOG.info("    → %s (%s) …", role, model)
+                try:
+                    out = await _invoke(llm, messages, limiter)
+                finally:
+                    dt = asyncio.get_event_loop().time() - t0
+                    _LOG.info("    ← %s (%s) %.1fs", role, model, dt)
+                return out
 
         async def call_judge(iteration: int, j: int, messages):
             llm = self._llm_for_judge(iteration, j)
             limiter = self._limiter_for(llm)
+            model = getattr(llm, "model_name", "?")
             async with sem:
                 trace.total_calls += 1
-                return await _invoke(llm, messages, limiter)
+                t0 = asyncio.get_event_loop().time()
+                _LOG.info("    → judge#%d (%s) …", j, model)
+                try:
+                    out = await _invoke(llm, messages, limiter)
+                finally:
+                    dt = asyncio.get_event_loop().time() - t0
+                    _LOG.info("    ← judge#%d (%s) %.1fs", j, model, dt)
+                return out
 
         # 1. Seed incumbent A
         a_text = await call_role("teacher", render_teacher_seed(instruction))
