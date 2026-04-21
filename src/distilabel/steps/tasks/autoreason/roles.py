@@ -33,42 +33,35 @@ from jinja2 import Template
 # ---------------------------------------------------------------------------
 
 TEACHER_SEED_SYSTEM = (
-    "You are an expert assistant. Answer directly and concretely. "
-    "No preamble, no meta-commentary, no restating the request. "
-    "Prefer dense, technically correct prose. Code: minimal, runnable, "
-    "no placeholder comments. If uncertain, state it briefly."
+    "Expert assistant. Answer direct, concrete, dense. No preamble, no meta, "
+    "no restating the request. Code: minimal, runnable, no placeholder "
+    "comments. Uncertain → say briefly."
 )
 
 CRITIC_SYSTEM = (
-    "You are a rigorous critic. Your sole job is to identify concrete, specific "
-    "flaws in a draft response to a given instruction. Quote the exact phrase "
-    "or line you object to and explain briefly why it is wrong, misleading, or "
-    "insufficient. If the draft is already strong and you cannot point to a "
-    "real flaw, reply with exactly the two words: NO FLAWS. Do not invent "
-    "weaknesses to seem thorough."
+    "Rigorous critic. Find concrete, specific flaws in draft. Quote exact "
+    "phrase or line, explain briefly why wrong, misleading, or insufficient. "
+    "If draft already strong and no real flaw exists, reply exactly: NO FLAWS. "
+    "Don't invent weaknesses to seem thorough."
 )
 
 AUTHOR_B_SYSTEM = (
-    "You are an adversarial reviser. You will rewrite a draft response so that "
-    "it directly addresses the specific flaws raised in a critique. Do not "
-    "expand scope. Do not pad length. Address only the specific flaws named in "
-    "the critique, and keep the same overall length, structure, and scope as "
-    "the original draft."
+    "Adversarial reviser. Rewrite draft to address the critique's specific "
+    "flaws. Don't expand scope. Don't pad length. Keep same overall length, "
+    "structure, scope. Output revised response only."
 )
 
 SYNTHESIZER_SYSTEM = (
-    "You are a conservative synthesizer. Produce a minimal repair of the "
-    "draft: keep everything the draft already does well and change only what "
-    "the critique specifically identifies as wrong. Make the smallest possible "
-    "change that addresses the critique. If the critique is weak or vague, the "
-    "synthesis should be nearly identical to the draft."
+    "Conservative synthesizer. Minimal repair: keep what draft does well, "
+    "change only what critique identifies as wrong. Smallest possible change. "
+    "If critique weak, synthesis nearly identical to draft. Output synthesis "
+    "only."
 )
 
 JUDGE_SYSTEM = (
-    "You are an impartial judge. You will rank three anonymized candidate "
-    "responses to the same instruction. Do not reveal preferences by position "
-    "and do not produce any chain of thought. Reply with the ranking line "
-    "only, in exactly the format: RANKING: X? > X? > X?"
+    "Impartial judge. Rank three anonymized candidates (X1, X2, X3) against "
+    "the instruction. No position bias. No chain of thought. Reply with "
+    "ranking line only, exact format: RANKING: X? > X? > X?"
 )
 
 

@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 from distilabel.steps.tasks.autoreason.borda import borda_count, pick_winner
 from distilabel.steps.tasks.autoreason.rate_limit import (
@@ -43,6 +43,11 @@ if TYPE_CHECKING:
     from distilabel.models.llms.base import LLM
 
 _LOG = logging.getLogger(__name__)
+
+
+RoleLLMs = Dict[str, "LLM"]          # keys: teacher, critic, author_b, synthesizer
+JudgePool = List["LLM"]               # round-robin per judge call
+LimiterMap = Dict[str, AsyncTokenBucket]  # keyed by LLM.model_name
 
 
 async def _invoke(llm: "LLM", messages: list, limiter: Optional[AsyncTokenBucket]) -> str:
@@ -105,7 +110,30 @@ class TournamentRunner:
         max_concurrency: int = 8,
         rate_limiter: Optional[AsyncTokenBucket] = None,
         rng_seed_base: int = 0,
+        role_llms: Optional[RoleLLMs] = None,
+        judge_pool: Optional[JudgePool] = None,
+        limiter_map: Optional[LimiterMap] = None,
     ) -> None:
+        """
+        Parameters
+        ----------
+        llm
+            Fallback / default LLM. Used for any role not overridden by
+            ``role_llms``, and for judges when ``judge_pool`` is not given.
+        role_llms
+            Optional per-role LLM assignment. Keys may include ``teacher``,
+            ``critic``, ``author_b``, ``synthesizer``. Missing keys fall
+            back to ``llm``.
+        judge_pool
+            Optional list of LLMs for the judge panel. Judges are assigned
+            round-robin: judge ``j`` at iteration ``i`` uses
+            ``pool[(i * num_judges + j) % len(pool)]``. If empty/None, all
+            judges use ``llm``.
+        limiter_map
+            Per-model-name rate-limit buckets. Keyed by ``LLM.model_name``.
+            If given, the runner looks up the right bucket per call; else
+            ``rate_limiter`` is used for every call.
+        """
         if num_judges < 1:
             raise ValueError("num_judges must be >= 1")
         if max_iterations < 1:
@@ -122,24 +150,51 @@ class TournamentRunner:
         self.max_concurrency = max_concurrency
         self.rate_limiter = rate_limiter
         self.rng_seed_base = rng_seed_base
+        self.role_llms: RoleLLMs = dict(role_llms or {})
+        self.judge_pool: JudgePool = list(judge_pool or [])
+        self.limiter_map: LimiterMap = dict(limiter_map or {})
+
+    def _llm_for_role(self, role: str) -> "LLM":
+        return self.role_llms.get(role, self.llm)
+
+    def _llm_for_judge(self, iteration: int, j: int) -> "LLM":
+        if self.judge_pool:
+            idx = (iteration * self.num_judges + j) % len(self.judge_pool)
+            return self.judge_pool[idx]
+        return self._llm_for_role("critic") if False else self.llm
+
+    def _limiter_for(self, llm: "LLM") -> Optional[AsyncTokenBucket]:
+        name = getattr(llm, "model_name", None)
+        if name and self.limiter_map:
+            return self.limiter_map.get(name, self.rate_limiter)
+        return self.rate_limiter
 
     async def run(self, instruction: str) -> TournamentTrace:
         trace = TournamentTrace()
         sem = asyncio.Semaphore(self.max_concurrency)
 
-        async def call(messages):
+        async def call_role(role: str, messages):
+            llm = self._llm_for_role(role)
+            limiter = self._limiter_for(llm)
             async with sem:
                 trace.total_calls += 1
-                return await _invoke(self.llm, messages, self.rate_limiter)
+                return await _invoke(llm, messages, limiter)
+
+        async def call_judge(iteration: int, j: int, messages):
+            llm = self._llm_for_judge(iteration, j)
+            limiter = self._limiter_for(llm)
+            async with sem:
+                trace.total_calls += 1
+                return await _invoke(llm, messages, limiter)
 
         # 1. Seed incumbent A
-        a_text = await call(render_teacher_seed(instruction))
+        a_text = await call_role("teacher", render_teacher_seed(instruction))
 
         consecutive_a_wins = 0
 
         for i in range(self.max_iterations):
             # 2. Critique (sequential — B and AB need it)
-            critique_raw = await call(render_critic(instruction, a_text))
+            critique_raw = await call_role("critic", render_critic(instruction, a_text))
             critique_text, no_flaws = parse_critique(critique_raw)
 
             if no_flaws:
@@ -164,8 +219,8 @@ class TournamentRunner:
                 continue
 
             # 3. B + AB in parallel
-            b_task = asyncio.create_task(call(render_author_b(instruction, a_text, critique_text)))
-            ab_task = asyncio.create_task(call(render_synthesizer(instruction, a_text, critique_text)))
+            b_task = asyncio.create_task(call_role("author_b", render_author_b(instruction, a_text, critique_text)))
+            ab_task = asyncio.create_task(call_role("synthesizer", render_synthesizer(instruction, a_text, critique_text)))
             b_text, ab_text = await asyncio.gather(b_task, ab_task)
 
             # 4. Judge panel in parallel (blind labels per judge)
@@ -178,7 +233,7 @@ class TournamentRunner:
                     instruction, a_text, b_text, ab_text, rng_seed=seed
                 )
                 permutations.append(permutation)
-                judge_tasks.append(asyncio.create_task(call(messages)))
+                judge_tasks.append(asyncio.create_task(call_judge(i, j, messages)))
 
             judge_raws = await asyncio.gather(*judge_tasks, return_exceptions=True)
 

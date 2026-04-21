@@ -78,7 +78,7 @@ class ReasoningOpenRouterLLM(OpenAILLM):
             first = (input_msgs[0].get("content") or "")[:120].lower()
         except Exception:  # noqa: BLE001
             return "unknown"
-        if "rigorous critic" in first:
+        if "rigorous critic" in first or first.startswith("rigorous critic"):
             return "critic"
         if "adversarial reviser" in first:
             return "author_b"
@@ -86,7 +86,7 @@ class ReasoningOpenRouterLLM(OpenAILLM):
             return "synthesizer"
         if "impartial judge" in first:
             return "judge"
-        if "careful, helpful expert" in first or "expert assistant" in first:
+        if "expert assistant" in first or "careful, helpful expert" in first:
             return "teacher"
         return "unknown"
 
@@ -177,7 +177,7 @@ class LocalInlineThinkLLM(OpenAILLM):
             first = (input_msgs[0].get("content") or "")[:120].lower()
         except Exception:  # noqa: BLE001
             return "unknown"
-        if "rigorous critic" in first:
+        if "rigorous critic" in first or first.startswith("rigorous critic"):
             return "critic"
         if "adversarial reviser" in first:
             return "author_b"
@@ -185,7 +185,7 @@ class LocalInlineThinkLLM(OpenAILLM):
             return "synthesizer"
         if "impartial judge" in first:
             return "judge"
-        if "careful, helpful expert" in first or "expert assistant" in first:
+        if "expert assistant" in first or "careful, helpful expert" in first:
             return "teacher"
         return "unknown"
 
