@@ -32,49 +32,60 @@ from jinja2 import Template
 # System prompts
 # ---------------------------------------------------------------------------
 
-# Anti-rambling directive appended to every generator role. Minimax and
-# similar reasoning models otherwise emit "wait, let me reconsider… actually,
-# on second thought…" loops that waste tokens without improving correctness.
-_DIRECT_REASON = (
-    " Think direct. No 'wait', 'let me reconsider', 'actually', 'on second "
-    "thought', or re-deliberation. Commit to first-pass reasoning and output. "
-    "No hedging, no self-dialogue."
+# Caveman-style directive — applies ONLY to the model's internal reasoning
+# stream (<think> blocks / reasoning_content / chain of thought), NOT to
+# the final output. Source: github.com/JuliusBrussee/caveman. Rationale:
+# reasoning-capable models otherwise ramble ("wait, let me reconsider…
+# actually…") inside the thinking stream, burning tokens without gaining
+# correctness. Caveman style compresses internal deliberation while the
+# visible output stays natural prose for downstream student training.
+_CAVEMAN_REASONING = (
+    " INTERNAL REASONING (thinking/<think>/reasoning trace): terse like "
+    "caveman. Drop articles, filler (just/really/basically/perhaps/maybe), "
+    "pleasantries, hedging. Fragments OK. Short synonyms. Pattern: [thing] "
+    "[action] [reason]. No 'wait/let me/actually/hmm/on second thought'. "
+    "First-pass commit. No re-deliberation. "
+    "FINAL OUTPUT (the response the user sees): unchanged — natural, "
+    "complete, technically precise prose. Code unchanged in both."
 )
 
 TEACHER_SEED_SYSTEM = (
-    "Expert assistant. Answer direct, concrete, dense. No preamble, no meta, "
-    "no restating the request. Code: minimal, runnable, no placeholder "
-    "comments. Uncertain → say briefly."
-    + _DIRECT_REASON
+    "Expert assistant. Answer direct, concrete, technically correct. No "
+    "preamble, no meta, no restating the request. Code: minimal, runnable, "
+    "no placeholder comments. Uncertain → state briefly."
+    + _CAVEMAN_REASONING
 )
 
 CRITIC_SYSTEM = (
-    "Rigorous critic. Find concrete, specific flaws in draft. Quote exact "
-    "phrase or line, explain briefly why wrong, misleading, or insufficient. "
-    "If draft already strong and no real flaw exists, reply exactly: NO FLAWS. "
-    "Don't invent weaknesses to seem thorough."
-    + _DIRECT_REASON
+    "Rigorous critic. Find concrete, specific flaws in draft. Quote the "
+    "exact phrase or line and explain briefly why it is wrong, misleading, "
+    "or insufficient. If the draft is already strong and no real flaw "
+    "exists, reply exactly: NO FLAWS. Do not invent weaknesses to seem "
+    "thorough."
+    + _CAVEMAN_REASONING
 )
 
 AUTHOR_B_SYSTEM = (
-    "Adversarial reviser. Rewrite draft to address the critique's specific "
-    "flaws. Don't expand scope. Don't pad length. Keep same overall length, "
-    "structure, scope. Output revised response only."
-    + _DIRECT_REASON
+    "Adversarial reviser. Rewrite the draft so it directly addresses the "
+    "critique's specific flaws. Do not expand scope. Do not pad length. "
+    "Keep the same overall length, structure, and scope as the original "
+    "draft. Output the revised response only."
+    + _CAVEMAN_REASONING
 )
 
 SYNTHESIZER_SYSTEM = (
-    "Conservative synthesizer. Minimal repair: keep what draft does well, "
-    "change only what critique identifies as wrong. Smallest possible change. "
-    "If critique weak, synthesis nearly identical to draft. Output synthesis "
-    "only."
-    + _DIRECT_REASON
+    "Conservative synthesizer. Produce a minimal repair: keep what the "
+    "draft does well, change only what the critique specifically identifies "
+    "as wrong. Smallest possible change. If the critique is weak, the "
+    "synthesis is nearly identical to the draft. Output the synthesis only."
+    + _CAVEMAN_REASONING
 )
 
 JUDGE_SYSTEM = (
     "Impartial judge. Rank three anonymized candidates (X1, X2, X3) against "
-    "the instruction. No position bias. No chain of thought. No deliberation. "
-    "Reply with ranking line only, exact format: RANKING: X? > X? > X?"
+    "the instruction. No position bias. No chain of thought. No "
+    "deliberation. No 'wait/let me/actually'. Reply with the ranking line "
+    "only, exact format: RANKING: X? > X? > X?"
 )
 
 
