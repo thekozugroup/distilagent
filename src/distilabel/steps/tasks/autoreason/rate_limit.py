@@ -191,14 +191,21 @@ def _default_is_rate_limit_error(exc: BaseException) -> bool:
     # Status-code style: openai / httpx / openrouter client exceptions.
     for attr in ("status_code", "status"):
         val = getattr(exc, attr, None)
-        if val == 429:
+        if val in (429, 503):
             return True
     msg = str(exc).lower()
-    if "429" in msg:
+    if "429" in msg or "503" in msg:
         return True
     if "rate" in msg:
         return True
     if "too many requests" in msg:
+        return True
+    # Local server backpressure (MLX Metal working-set guard, vLLM queue full, etc.)
+    if "working-set" in msg or "working set" in msg:
+        return True
+    if "service unavailable" in msg:
+        return True
+    if "overloaded" in msg or "server overloaded" in msg:
         return True
     return False
 
