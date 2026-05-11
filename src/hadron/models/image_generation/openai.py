@@ -16,13 +16,14 @@ import base64
 from typing import TYPE_CHECKING, Any, Literal, Optional
 
 import requests
-from pydantic import validate_call
+from pydantic import PrivateAttr, validate_call
 
 from hadron.models.base_clients.openai import OpenAIBaseClient
 from hadron.models.image_generation.base import AsyncImageGenerationModel
 
 if TYPE_CHECKING:
     from openai.types import ImagesResponse
+
 
 class OpenAIImageGeneration(OpenAIBaseClient, AsyncImageGenerationModel):
     """OpenAI image generation implementation running the async API client.
@@ -64,10 +65,21 @@ class OpenAIImageGeneration(OpenAIBaseClient, AsyncImageGenerationModel):
         ```
     """
 
+    _session: Optional[requests.Session] = PrivateAttr(None)
+
     def load(self) -> None:
         # Sets the logger and calls the load method of the BaseClient
         AsyncImageGenerationModel.load(self)
         OpenAIBaseClient.load(self)
+        if self._session is None:
+            self._session = requests.Session()
+
+    def unload(self) -> None:
+        if self._session:
+            self._session.close()
+        self._session = None
+        OpenAIBaseClient.unload(self)
+        AsyncImageGenerationModel.unload(self)
 
     @validate_call
     async def agenerate(  # type: ignore
@@ -118,9 +130,7 @@ class OpenAIImageGeneration(OpenAIBaseClient, AsyncImageGenerationModel):
         images = []
         for image in images_response.data:
             if response_format == "url":
-                image_data = requests.get(
-                    image.url
-                ).content  # TODO: Keep a requests/httpx session instead
+                image_data = self._session.get(image.url).content  # type: ignore
                 image_str = base64.b64encode(image_data).decode()
                 images.append(image_str)
             elif response_format == "b64_json":

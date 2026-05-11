@@ -19,13 +19,18 @@ import pytest
 
 from hadron.models.image_generation.openai import OpenAIImageGeneration
 
+
 @patch("openai.OpenAI")
 @patch("openai.AsyncOpenAI")
 class TestOpenAIImageGeneration:
     model_id: str = "dall-e-3"
 
+    @patch("requests.Session")
     def test_openai_image_generation(
-        self, _async_openai_mock: MagicMock, _openai_mock: MagicMock
+        self,
+        mock_session: MagicMock,
+        _async_openai_mock: MagicMock,
+        _openai_mock: MagicMock,
     ):
         igm = OpenAIImageGeneration(
             model="dall-e-3",
@@ -40,6 +45,14 @@ class TestOpenAIImageGeneration:
         assert isinstance(igm, OpenAIImageGeneration)
         assert igm.model_name == self.model_id
 
+        igm.load()
+        assert igm._session is not None
+        mock_session.assert_called_once()
+
+        igm.unload()
+        assert igm._session is None
+        mock_session.return_value.close.assert_called_once()
+
     @pytest.mark.parametrize("response_format", ["url", "b64_json"])
     @pytest.mark.asyncio
     async def test_agenerate(
@@ -50,8 +63,9 @@ class TestOpenAIImageGeneration:
     ) -> None:
         igm = OpenAIImageGeneration(model=self.model_id, api_key="api.key")  # type: ignore
         igm._aclient = async_openai_mock
+        igm._session = MagicMock()
 
-        with patch("requests.get") as mock_get:
+        with patch.object(igm._session, "get") as mock_get:
             # Mock the download of the image
             mock_get.return_value = Mock(content=b"iVBORw0KGgoAAAANSUhEUgA...")
             if response_format == "url":
@@ -76,8 +90,9 @@ class TestOpenAIImageGeneration:
     ) -> None:
         igm = OpenAIImageGeneration(model=self.model_id, api_key="api.key")  # type: ignore
         igm._aclient = async_openai_mock
+        igm._session = MagicMock()
 
-        with patch("requests.get") as mock_get:
+        with patch.object(igm._session, "get") as mock_get:
             # Mock the download of the image
             mock_get.return_value = Mock(content=b"iVBORw0KGgoAAAANSUhEUgA...")
 
